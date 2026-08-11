@@ -132,6 +132,23 @@ make up ARCH=x86_64
 make up VERSION=135.0.1 RELEASE=beta.24
 ```
 
+#### Podman
+
+Prefer Podman? A dedicated `Makefile.podman` provides the same workflow with `podman` (layer-cached builds, no `docker` needed):
+
+```bash
+# Build and start
+make -f Makefile.podman up
+
+# Stop and remove the container
+make -f Makefile.podman down
+
+# Force a clean rebuild (e.g. after upgrading VERSION/RELEASE)
+make -f Makefile.podman reset
+```
+
+See [PODMAN.md](PODMAN.md) for the full build / start / stop / maintenance guide.
+
 #### Windows
 
 On Windows, `make` is not available. Use the included `build.ps1` PowerShell script instead:

@@ -1,0 +1,55 @@
+# Podman build & hosting workflow for camofox-browser
+# Usage: make -f Makefile.podman <target>
+# Keep VERSION/RELEASE in sync with the ARGs at the top of the Dockerfile.
+
+VERSION ?= 135.0.1
+RELEASE ?= beta.24
+
+# Map host arch to the suffix used in Camoufox release filenames
+UNAME_ARCH := $(shell uname -m)
+ifeq ($(UNAME_ARCH),arm64)
+  ARCH          := aarch64
+  CAMOUFOX_ARCH := arm64
+else
+  ARCH          := $(UNAME_ARCH)
+  CAMOUFOX_ARCH := x86_64
+endif
+
+IMAGE   := camofox-browser:$(VERSION)-$(ARCH)
+PODMAN  ?= podman
+
+.PHONY: build up down stop logs restart ps reset
+
+## Build image. Pinned args => reproducible; layer cache => quick rebuilds.
+build:
+	$(PODMAN) build \
+	  --build-arg ARCH=$(CAMOUFOX_ARCH) \
+	  --build-arg CAMOUFOX_VERSION=$(VERSION) \
+	  --build-arg CAMOUFOX_RELEASE=$(RELEASE) \
+	  -t $(IMAGE) .
+
+## Build if needed, then start the container
+up:
+	@if ! $(PODMAN) image exists $(IMAGE) >/dev/null 2>&1; then $(MAKE) build; fi
+	$(PODMAN) run -d --name camofox-browser --restart unless-stopped --shm-size=2g \
+	  -p 9377:9377 $(IMAGE)
+
+down:
+	-$(PODMAN) stop camofox-browser
+	-$(PODMAN) rm camofox-browser
+
+stop:
+	-$(PODMAN) stop camofox-browser
+
+logs:
+	$(PODMAN) logs -f camofox-browser
+
+restart: down up
+
+ps:
+	$(PODMAN) ps --filter name=camofox-browser
+
+## Teardown, delete image, rebuild from scratch
+reset: down
+	-$(PODMAN) rmi $(IMAGE)
+	$(MAKE) build

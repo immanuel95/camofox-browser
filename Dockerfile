@@ -46,7 +46,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     # yt-dlp runtime dependency
-    python3-minimal \
+    python3 \
+    # better-sqlite3 (via camoufox-js) has no prebuilt binaries --
+    # npm ci compiles it from source with node-gyp, so we need the C++ toolchain
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-bake Camoufox browser binary into image (downloaded at build time)
