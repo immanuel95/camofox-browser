@@ -340,7 +340,7 @@ curl -X POST http://localhost:9377/sessions/agent1/cookies \
   -d '{"cookies":[{"name":"foo","value":"bar","domain":"example.com","path":"/","expires":-1,"httpOnly":false,"secure":false}]}'
 ```
 
-#### Docker / Fly.io / Railway
+#### Docker
 
 ```bash
 docker run -p 9377:9377 \
@@ -348,6 +348,21 @@ docker run -p 9377:9377 \
   -v ~/.camofox/cookies:/home/node/.camofox/cookies:ro \
   camofox-browser
 ```
+
+#### Podman
+
+```bash
+# Create env file
+echo 'CAMOFOX_API_KEY=your-generated-key' > ~/.camofox/camofox.env
+
+# Run with env file + cookie volume
+podman run -d --name camofox-browser -p 9377:9377 \
+  --env-file ~/.camofox/camofox.env \
+  -v ~/.camofox/cookies:/data/cookies:ro \
+  camofox-browser
+```
+
+#### Fly.io
 
 For Fly.io:
 ```bash
@@ -397,6 +412,14 @@ docker run -p 9377:9377 \
   -e PROXY_USERNAME=myuser \
   -e PROXY_PASSWORD=mypass \
   camofox-browser
+```
+
+Or with Podman:
+
+```bash
+make -f Makefile.podman up \
+  EXTRA_FLAGS="-e PROXY_HOST=166.88.179.132 -e PROXY_PORT=46040 \
+    -e PROXY_USERNAME=myuser -e PROXY_PASSWORD=mypass"
 ```
 
 When a proxy is configured:
