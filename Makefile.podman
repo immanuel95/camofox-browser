@@ -8,31 +8,52 @@ RELEASE ?= beta.24
 # Map host arch to the suffix used in Camoufox release filenames
 UNAME_ARCH := $(shell uname -m)
 ifeq ($(UNAME_ARCH),arm64)
-  ARCH          := aarch64
+  ARCH          ?= aarch64
   CAMOUFOX_ARCH := arm64
 else
-  ARCH          := $(UNAME_ARCH)
+  ARCH          ?= $(UNAME_ARCH)
   CAMOUFOX_ARCH := x86_64
 endif
 
 IMAGE   := camofox-browser:$(VERSION)-$(ARCH)
 PODMAN  ?= podman
 
-.PHONY: build up down stop logs restart ps reset
+# Persistence: default host directory for browser storage (cookies, localStorage)
+PROFILE_DIR ?= $(HOME)/.camofox/profiles
+
+# Runtime overrides
+ENV_FILE  ?= $(HOME)/.camofox/camofox.env  # env-file for container (absolute or relative path)
+EXTRA_FLAGS ?=                             # additional podman run flags (e.g. -e FOO=bar)
+
+.PHONY: build build-plugins up down stop logs restart ps reset health
 
 ## Build image. Pinned args => reproducible; layer cache => quick rebuilds.
 build:
-	$(PODMAN) build \
+	$(PODMAN) build --pull \
 	  --build-arg ARCH=$(CAMOUFOX_ARCH) \
 	  --build-arg CAMOUFOX_VERSION=$(VERSION) \
 	  --build-arg CAMOUFOX_RELEASE=$(RELEASE) \
 	  -t $(IMAGE) .
 
-## Build if needed, then start the container
+## Build the with-plugins stage (rebuilds plugin deps for third-party plugins).
+build-plugins:
+	$(PODMAN) build --pull \
+	  --target with-plugins \
+	  --build-arg ARCH=$(CAMOUFOX_ARCH) \
+	  --build-arg CAMOUFOX_VERSION=$(VERSION) \
+	  --build-arg CAMOUFOX_RELEASE=$(RELEASE) \
+	  -t $(IMAGE) .
+
+## Build if needed, then start the container (persistence volume is always mounted).
 up:
 	@if ! $(PODMAN) image exists $(IMAGE) >/dev/null 2>&1; then $(MAKE) build; fi
+	$(eval _env_file := $(if $(wildcard $(abspath $(ENV_FILE))),--env-file $(abspath $(ENV_FILE)),))
 	$(PODMAN) run -d --name camofox-browser --restart unless-stopped --shm-size=2g \
-	  -p 9377:9377 $(IMAGE)
+	  -p 9377:9377 \
+	  -v $(abspath $(PROFILE_DIR)):/data/profiles \
+	  $(_env_file) \
+	  $(EXTRA_FLAGS) \
+	  $(IMAGE)
 
 down:
 	-$(PODMAN) stop camofox-browser
@@ -42,14 +63,18 @@ stop:
 	-$(PODMAN) stop camofox-browser
 
 logs:
-	$(PODMAN) logs -f camofox-browser
+	$(PODMAN) logs -f --tail 200 camofox-browser
 
 restart: down up
 
 ps:
 	$(PODMAN) ps --filter name=camofox-browser
 
+## Verify the container is healthy (HTTP 200 from /health endpoint).
+health:
+	@curl -sf http://localhost:9377/health || (echo "Container not healthy" && exit 1)
+
 ## Teardown, delete image, rebuild from scratch
 reset: down
-	-$(PODMAN) rmi $(IMAGE)
+	-$(PODMAN) rmi --force $(IMAGE)
 	$(MAKE) build
