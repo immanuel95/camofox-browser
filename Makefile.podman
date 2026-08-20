@@ -21,6 +21,9 @@ PODMAN  ?= podman
 # Persistence: default host directory for browser storage (cookies, localStorage)
 PROFILE_DIR ?= $(HOME)/.camofox/profiles
 
+# Cookie files directory (auto-imported into new sessions)
+COOKIES_DIR ?= $(HOME)/.camofox/cookies
+
 # Runtime overrides
 ENV_FILE  ?= $(HOME)/.camofox/camofox.env  # env-file for container (absolute or relative path)
 EXTRA_FLAGS ?=                             # additional podman run flags (e.g. -e FOO=bar)
@@ -51,6 +54,8 @@ up:
 	$(PODMAN) run -d --name camofox-browser --restart unless-stopped --shm-size=2g \
 	  -p 9377:9377 \
 	  -v $(abspath $(PROFILE_DIR)):/data/profiles \
+	  -v $(abspath $(COOKIES_DIR)):/data/cookies \
+	  -e CAMOFOX_COOKIES_DIR=/data/cookies \
 	  $(_env_file) \
 	  $(EXTRA_FLAGS) \
 	  $(IMAGE)
