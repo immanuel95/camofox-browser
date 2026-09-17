@@ -2,8 +2,8 @@
 # Usage: make -f Makefile.podman <target>
 # Keep VERSION/RELEASE in sync with the ARGs at the top of the Dockerfile.
 
-VERSION ?= 135.0.1
-RELEASE ?= beta.24
+VERSION ?= 152.0.4
+RELEASE ?= beta.28
 
 # Map host arch to the suffix used in Camoufox release filenames
 UNAME_ARCH := $(shell uname -m)
